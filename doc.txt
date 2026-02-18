@@ -1,0 +1,352 @@
+# 📘 AGENCY CRM – DEVELOPMENT BLUEPRINT
+
+**Version:** 1.0
+**Backend:** Spring Boot
+**Frontend:** React (Vite)
+**Database:** MySQL
+**Authentication:** JWT + Role-Based Access Control
+
+---
+
+# 1️ SYSTEM OVERVIEW
+
+## 1.1 Purpose
+
+Agency CRM is a web-based system designed to manage:
+
+* Leads
+* Employee hierarchy
+* Client conversion
+* Plan management
+* Performance dashboards
+
+The system supports structured role-based access and hierarchical tracking.
+
+---
+
+# 2️ SYSTEM ARCHITECTURE
+
+React (Frontend)
+⬇ REST API
+Spring Boot (Backend)
+⬇
+MySQL Database
+
+---
+
+# 3️ DATABASE DESIGN (MySQL)
+
+## 3.1 Tables Overview
+
+* users
+* leads
+* clients
+* plans
+
+---
+
+## 3.2 USERS TABLE
+
+| Field        | Type                                           |
+| ------------ | ---------------------------------------------- |
+| id           | BIGINT (PK, AUTO_INCREMENT)                    |
+| name         | VARCHAR(100)                                   |
+| email        | VARCHAR(100), UNIQUE                           |
+| password     | VARCHAR(255)                                   |
+| role         | ENUM('ADMIN','MANAGER','TEAM_LEAD','EMPLOYEE') |
+| manager_id   | BIGINT (FK, nullable)                          |
+| team_lead_id | BIGINT (FK, nullable)                          |
+| created_at   | TIMESTAMP                                      |
+
+Hierarchy Logic:
+
+* Manager reports to Admin
+* Team Lead reports to Manager
+* Employee reports to Team Lead
+
+---
+
+## 3.3 LEADS TABLE
+
+| Field                 | Type                                                    |
+| --------------------- | ------------------------------------------------------- |
+| id                    | BIGINT (PK, AUTO_INCREMENT)                             |
+| name                  | VARCHAR(100)                                            |
+| email                 | VARCHAR(100)                                            |
+| phone                 | VARCHAR(20)                                             |
+| source                | VARCHAR(100)                                            |
+| interested_percentage | INT                                                     |
+| status                | ENUM('NEW','CONTACTED','INTERESTED','CONVERTED','LOST') |
+| assigned_to           | BIGINT (FK → users.id)                                  |
+| created_at            | TIMESTAMP                                               |
+| updated_at            | TIMESTAMP                                               |
+
+---
+
+## 3.4 CLIENTS TABLE
+
+| Field             | Type                        |
+| ----------------- | --------------------------- |
+| id                | BIGINT (PK, AUTO_INCREMENT) |
+| name              | VARCHAR(100)                |
+| email             | VARCHAR(100)                |
+| phone             | VARCHAR(20)                 |
+| plan_id           | BIGINT (FK → plans.id)      |
+| assigned_employee | BIGINT (FK → users.id)      |
+| conversion_date   | TIMESTAMP                   |
+
+---
+
+## 3.5 PLANS TABLE
+
+| Field       | Type                        |
+| ----------- | --------------------------- |
+| id          | BIGINT (PK, AUTO_INCREMENT) |
+| name        | VARCHAR(100)                |
+| description | TEXT                        |
+| price       | DECIMAL(10,2)               |
+| created_at  | TIMESTAMP                   |
+
+---
+
+# 4️ BACKEND PROJECT STRUCTURE
+
+com.agencycrm
+│
+├── config
+│   └── SecurityConfig
+│
+├── controller
+│   ├── AuthController
+│   ├── LeadController
+│   ├── ClientController
+│   ├── PlanController
+│   └── DashboardController
+│
+├── service
+│   ├── AuthService
+│   ├── LeadService
+│   ├── ClientService
+│   ├── PlanService
+│   └── DashboardService
+│
+├── repository
+│   ├── UserRepository
+│   ├── LeadRepository
+│   ├── ClientRepository
+│   └── PlanRepository
+│
+├── entity
+│   ├── User
+│   ├── Lead
+│   ├── Client
+│   └── Plan
+│
+├── dto
+│
+├── security
+│   ├── JwtFilter
+│   ├── JwtUtil
+│   └── CustomUserDetailsService
+│
+└── exception
+
+---
+
+# 5️ AUTHENTICATION FLOW
+
+1. User sends email + password
+2. Backend validates credentials
+3. JWT token generated
+4. Token returned to frontend
+5. Frontend sends token in header
+
+Header Format:
+
+Authorization: Bearer <token>
+
+Spring Security:
+
+* Stateless session
+* JWT filter before UsernamePasswordAuthenticationFilter
+
+---
+
+# 6️ ROLE-BASED ACCESS FLOW
+
+Access Control Rules:
+
+ADMIN
+
+* Access all endpoints
+
+MANAGER
+
+* Access users under them
+* Access leads and clients under their team
+
+TEAM_LEAD
+
+* Access employees under them
+* Access assigned team leads
+
+EMPLOYEE
+
+* Access only assigned leads and clients
+
+Filtering logic implemented in Service layer.
+
+---
+
+# 7️ CORE BUSINESS FLOW
+
+---
+
+# 7.1 Lead Creation Flow
+
+1. Admin / Manager / Team Lead creates lead
+2. Lead assigned to employee
+3. Lead stored in database
+
+---
+
+# 7.2 Lead Update Flow
+
+Employee updates:
+
+* Interested percentage
+* Status
+
+Status progression:
+NEW → CONTACTED → INTERESTED → CONVERTED / LOST
+
+---
+
+# 7.3 Lead Conversion Flow
+
+When status = CONVERTED:
+
+1. Create Client record
+2. Copy basic details
+3. Assign plan
+4. Store conversion date
+
+---
+
+# 7.4 Plan Creation Flow
+
+Admin:
+
+1. Creates plan
+2. Plan stored in database
+3. Plan selectable during client conversion
+
+---
+
+# 8️ DASHBOARD DATA FLOW
+
+Dashboard data is calculated using aggregation queries.
+
+---
+
+## 8.1 Employee Dashboard
+
+* Total Leads Assigned
+* Interested Leads
+* Converted Leads
+* Conversion Rate
+
+---
+
+## 8.2 Team Lead Dashboard
+
+* Total Team Leads
+* Team Conversions
+* Team Conversion Rate
+* Employee-wise stats
+
+---
+
+## 8.3 Manager Dashboard
+
+* Total Leads Under Manager
+* Total Clients
+* Team Performance Breakdown
+
+---
+
+## 8.4 Admin Dashboard
+
+* Total Leads
+* Total Clients
+* Total Users
+* Plan Distribution
+* Overall Conversion Rate
+
+---
+
+# 9️ API STRUCTURE
+
+---
+
+## Authentication
+
+POST /api/auth/login
+POST /api/auth/register
+
+---
+
+## Leads
+
+POST /api/leads
+GET /api/leads
+GET /api/leads/{id}
+PUT /api/leads/{id}
+DELETE /api/leads/{id}
+PUT /api/leads/{id}/convert
+
+---
+
+## Clients
+
+GET /api/clients
+GET /api/clients/{id}
+PUT /api/clients/{id}
+DELETE /api/clients/{id}
+
+---
+
+## Plans
+
+POST /api/plans
+GET /api/plans
+PUT /api/plans/{id}
+DELETE /api/plans/{id}
+
+---
+
+## Dashboard
+
+GET /api/dashboard/admin
+GET /api/dashboard/manager
+GET /api/dashboard/teamlead
+GET /api/dashboard/employee
+
+---
+
+# 10 DEVELOPMENT EXECUTION ORDER
+
+1. Create Spring Boot project
+2. Configure MySQL connection
+3. Create Entities
+4. Create Repositories
+5. Implement JWT authentication
+6. Implement role-based security
+7. Build Lead module
+8. Implement conversion logic
+9. Build Client module
+10. Build Plan module
+11. Implement Dashboard aggregation queries
+12. Connect React frontend
+
+---
